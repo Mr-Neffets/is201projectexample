@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProStream Task Board</title>
+    <style>
+        :root {
+            --primary-blue: #1e3a8a;
+            --secondary-blue: #3b82f6;
+            --light-blue: #eff6ff;
+            --bg-gray: #f8fafc;
+            --text-dark: #1e293b;
+            --text-light: #64748b;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-dark);
+            line-height: 1.6;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        header {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+            z-index: 10;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .btn-add-column {
+            background-color: var(--secondary-blue);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-add-column:hover {
+            background-color: #2563eb;
+        }
+
+        /* --- Board Layout --- */
+        #board {
+            display: flex;
+            padding: 1.5rem;
+            gap: 1.5rem;
+            overflow-x: auto;
+            flex-grow: 1;
+            align-items: flex-start;
+            scrollbar-width: thin;
+        }
+
+        /* --- Column Styles --- */
+        .column {
+            background-color: #ebf0f7;
+            min-width: 320px;
+            max-width: 320px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s, opacity 0.2s;
+            cursor: default;
+        }
+
+        .column.dragging-col {
+            opacity: 0.4;
+            transform: scale(0.95);
+        }
+
+        .column-header {
+            padding: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab; /* Shows header is the handle for moving columns */
+        }
+
+        .column-header:active {
+            cursor: grabbing;
+        }
+
+        .column-header h2 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--primary-blue);
+            pointer-events: none;
+        }
+
+        .delete-col {
+            color: var(--text-light);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 5px;
+        }
+
+        .task-list {
+            padding: 0.75rem;
+            flex-grow: 1;
+            min-height: 100px;
+            overflow-y: auto;
+            border: 2px solid transparent;
+            transition: background 0.2s;
+        }
+
+        .task-list.drag-over-list {
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 4px;
+        }
+
+        /* --- Task Styles --- */
+        .task {
+            background: white;
+            margin-bottom: 0.75rem;
+            padding: 1rem;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: grab;
+            border-left: 4px solid var(--secondary-blue);
+            transition: box-shadow 0.2s;
+        }
+
+        .task:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .task.dragging-task {
+            opacity: 0.3;
+        }
+
+        .task p {
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            word-wrap: break-word;
+        }
+
+        .task-footer {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .delete-task {
+            font-size: 0.75rem;
+            color: #ef4444;
+            cursor: pointer;
+            background: none;
+            border: none;
+            opacity: 0.6;
+        }
+
+        .delete-task:hover {
+            opacity: 1;
+        }
+
+        .add-task-container {
+            padding: 1rem;
+            background: rgba(255,255,255,0.4);
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        .add-task-input {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            outline-color: var(--secondary-blue);
+        }
+
+        .btn-add-task {
+            width: 100%;
+            background: white;
+            border: 1px dashed var(--secondary-blue);
+            color: var(--secondary-blue);
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-add-task:hover {
+            background: var(--secondary-blue);
+            color: white;
+            border-style: solid;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            height: 8px;
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>ProStream Board</h1>
+        <button class="btn-add-column" onclick="addColumn()">+ Add Column</button>
+    </header>
+
+    <div id="board">
+        </div>
+
+    <script>
+        // Data structure & Persistence
+        let boardData = JSON.parse(localStorage.getItem('kanbanDataV2')) || [
+            { id: 'col-1', title: 'To Do', tasks: ['Project kickoff', 'Client meeting'] },
+            { id: 'col-2', title: 'In Progress', tasks: ['Developing UI components'] },
+            { id: 'col-3', title: 'Done', tasks: ['Market research'] }
+        ];
+
+        let draggedItem = null; // Can be a task or a column
+        let dragType = null;    // 'task' or 'column'
+
+        const board = document.getElementById('board');
+
+        function renderBoard() {
+            board.innerHTML = '';
+            boardData.forEach((column, colIndex) => {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'column';
+                colDiv.setAttribute('draggable', 'true');
+                colDiv.setAttribute('data-col-index', colIndex);
+                
+                // Column Drag Events
+                colDiv.addEventListener('dragstart', (e) => handleColumnDragStart(e, colIndex));
+                colDiv.addEventListener('dragover', (e) => handleColumnDragOver(e, colIndex));
+                colDiv.addEventListener('drop', (e) => handleColumnDrop(e, colIndex));
+                colDiv.addEventListener('dragend', handleDragEnd);
+
+                colDiv.innerHTML = `
+                    <div class="column-header">
+                        <h2>${column.title}</h2>
+                        <span class="delete-col" onclick="deleteColumn(event, ${colIndex})">✕</span>
+                    </div>
+                    <div class="task-list" 
+                         data-col-index="${colIndex}"
+                         ondragover="handleTaskDragOver(event)" 
+                         ondrop="handleTaskDrop(event, ${colIndex})">
+                        ${column.tasks.map((task, taskIndex) => `
+                            <div class="task" 
+                                 draggable="true" 
+                                 ondragstart="handleTaskDragStart(event, ${colIndex}, ${taskIndex})"
+                                 ondragend="handleDragEnd(event)">
+                                <p>${task}</p>
+                                <div class="task-footer">
+                                    <button class="delete-task" onclick="deleteTask(${colIndex}, ${taskIndex})">Remove</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="add-task-container">
+                        <input type="text" class="add-task-input" placeholder="New task..." id="input-${colIndex}" onkeypress="handleKeyPress(event, ${colIndex})">
+                        <button class="btn-add-task" onclick="addTask(${colIndex})">Add Task</button>
+                    </div>
+                `;
+                board.appendChild(colDiv);
+            });
+            saveData();
+        }
+
+        // --- Column Logic ---
+        function addColumn() {
+            const title = prompt("Enter column name:");
+            if (title && title.trim()) {
+                boardData.push({ id: Date.now().toString(), title: title.trim(), tasks: [] });
+                renderBoard();
+            }
+        }
+
+        function deleteColumn(e, index) {
+            e.stopPropagation();
+            if(confirm("Delete this column?")) {
+                boardData.splice(index, 1);
+                renderBoard();
+            }
+        }
+
+        // --- Task Logic ---
+        function addTask(colIndex) {
+            const input = document.getElementById(`input-${colIndex}`);
+            if (input.value.trim() !== '') {
+                boardData[colIndex].tasks.push(input.value.trim());
+                input.value = '';
+                renderBoard();
+            }
+        }
+
+        function handleKeyPress(e, colIndex) {
+            if (e.key === 'Enter') addTask(colIndex);
+        }
+
+        function deleteTask(colIndex, taskIndex) {
+            boardData[colIndex].tasks.splice(taskIndex, 1);
+            renderBoard();
+        }
+
+        // --- Drag & Drop: Column Reordering ---
+        function handleColumnDragStart(e, index) {
+            // If the user started dragging from a task, don't drag the column
+            if (e.target.classList.contains('task')) return;
+            
+            dragType = 'column';
+            draggedItem = index;
+            e.target.classList.add('dragging-col');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleColumnDragOver(e, index) {
+            if (dragType !== 'column') return;
+            e.preventDefault();
+        }
+
+        function handleColumnDrop(e, targetIndex) {
+            if (dragType !== 'column') return;
+            e.preventDefault();
+            
+            const movingCol = boardData.splice(draggedItem, 1)[0];
+            boardData.splice(targetIndex, 0, movingCol);
+            renderBoard();
+        }
+
+        // --- Drag & Drop: Task Movement ---
+        function handleTaskDragStart(e, colIndex, taskIndex) {
+            e.stopPropagation(); // Prevents column drag from triggering
+            dragType = 'task';
+            draggedItem = { colIndex, taskIndex };
+            e.target.classList.add('dragging-task');
+        }
+
+        function handleTaskDragOver(e) {
+            if (dragType !== 'task') return;
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over-list');
+        }
+
+        function handleTaskDrop(e, targetColIndex) {
+            if (dragType !== 'task') return;
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over-list');
+            
+            const { colIndex, taskIndex } = draggedItem;
+            const taskContent = boardData[colIndex].tasks.splice(taskIndex, 1)[0];
+            boardData[targetColIndex].tasks.push(taskContent);
+            
+            renderBoard();
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging-task', 'dragging-col');
+            document.querySelectorAll('.task-list').forEach(l => l.classList.remove('drag-over-list'));
+            dragType = null;
+            draggedItem = null;
+        }
+
+        function saveData() {
+            localStorage.setItem('kanbanDataV2', JSON.stringify(boardData));
+        }
+
+        // Initialize
+        renderBoard();
+    </script>
+</body>
+</html>
